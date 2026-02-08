@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Super Bowl LIX Squares</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a1a; color: #e0e0e0; min-height: 100vh; }
+
+.header { background: linear-gradient(135deg, #1B3A5C, #0d2137); padding: 16px 20px; text-align: center; border-bottom: 3px solid #2a6496; }
+.header h1 { font-size: 22px; color: #fff; letter-spacing: 1px; }
+.header .subtitle { font-size: 13px; color: #8ab4d8; margin-top: 4px; }
+
+.live-bar { background: #111; padding: 16px 20px; text-align: center; border-bottom: 1px solid #222; }
+.live-score { font-size: 32px; font-weight: 700; color: #fff; }
+.live-score .team { color: #8ab4d8; }
+.live-score .vs { color: #555; font-size: 20px; margin: 0 10px; }
+.live-meta { font-size: 13px; color: #666; margin-top: 6px; }
+.live-dot { display: inline-block; width: 8px; height: 8px; background: #e74c3c; border-radius: 50%; margin-right: 6px; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+/* Quarter Results */
+.quarters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0; }
+.q-card { background: #161625; border: 1px solid #2a2a40; border-radius: 8px; padding: 14px; text-align: center; }
+.q-card.won { border-color: #27ae60; background: #0d1f15; }
+.q-card.rollover { border-color: #e67e22; background: #1f1a0d; }
+.q-card.waiting { border-color: #333; opacity: 0.5; }
+.q-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; }
+.q-score { font-size: 16px; font-weight: 600; color: #fff; margin: 6px 0; }
+.q-winner { font-size: 14px; font-weight: 700; }
+.q-winner.paid { color: #2ecc71; }
+.q-winner.rolled { color: #e67e22; }
+.q-payout { font-size: 18px; font-weight: 700; margin-top: 4px; }
+.q-payout.paid { color: #2ecc71; }
+.q-note { font-size: 11px; color: #888; margin-top: 4px; }
+
+/* Leaderboard */
+.leaderboard { background: #161625; border: 1px solid #2a2a40; border-radius: 8px; padding: 16px; margin: 16px 0; }
+.leaderboard h3 { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.lb-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1e1e30; }
+.lb-row:last-child { border-bottom: none; }
+.lb-name { font-size: 15px; }
+.lb-amt { font-size: 15px; font-weight: 700; color: #2ecc71; }
+.lb-remaining { color: #888; margin-top: 10px; font-size: 13px; text-align: right; }
+
+/* Board */
+.board-section { margin: 16px 0; overflow-x: auto; }
+.board-section h3 { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+table.board { border-collapse: collapse; font-size: 11px; width: 100%; min-width: 700px; }
+table.board th { background: #1B3A5C; color: #fff; padding: 8px 4px; text-align: center; font-size: 13px; font-weight: 700; border: 1px solid #0d2137; }
+table.board td { padding: 8px 4px; text-align: center; border: 1px solid #2a2a40; vertical-align: middle; height: 48px; }
+table.board td.player { background: #1a1a2e; color: #ddd; }
+table.board td.rollover { background: #404040; color: #fff; font-weight: 700; font-size: 10px; }
+table.board td.axis { background: #1a2744; color: #8ab4d8; font-weight: 700; font-size: 14px; }
+table.board td.corner { background: #1B3A5C; color: #8ab4d8; font-size: 10px; font-weight: 600; }
+table.board td.highlight { box-shadow: inset 0 0 0 3px #f1c40f; }
+
+/* Commissioner Panel */
+.comm-toggle { text-align: center; margin: 20px 0 10px; }
+.comm-toggle button { background: none; border: 1px solid #333; color: #666; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.comm-toggle button:hover { border-color: #555; color: #999; }
+.comm-panel { display: none; background: #161625; border: 1px solid #e67e22; border-radius: 8px; padding: 20px; margin: 10px 0; }
+.comm-panel.open { display: block; }
+.comm-panel h3 { color: #e67e22; font-size: 14px; margin-bottom: 12px; }
+.comm-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+.comm-row label { font-size: 13px; min-width: 80px; color: #aaa; }
+.comm-row input { background: #0a0a1a; border: 1px solid #333; color: #fff; padding: 6px 10px; border-radius: 4px; width: 60px; font-size: 14px; text-align: center; }
+.comm-row button { background: #e67e22; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.comm-row button:hover { background: #d35400; }
+.comm-row button.espn-btn { background: #2a6496; }
+.comm-row button.espn-btn:hover { background: #1B3A5C; }
+.comm-row .status { font-size: 12px; color: #666; }
+.comm-row .locked { color: #2ecc71; font-weight: 600; }
+.share-url { margin-top: 14px; padding: 10px; background: #0a0a1a; border: 1px solid #333; border-radius: 4px; font-size: 12px; color: #8ab4d8; word-break: break-all; cursor: pointer; }
+.share-url:hover { border-color: #2a6496; }
+
+.footer { text-align: center; padding: 20px; font-size: 11px; color: #444; }
+
+@media (max-width: 600px) {
+  .quarters { grid-template-columns: repeat(2, 1fr); }
+  .live-score { font-size: 24px; }
+  .comm-row { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>SUPER BOWL LIX SQUARES</h1>
+  <div class="subtitle">$400 Pot &bull; 8 Players &bull; $50 Buy-in</div>
+</div>
+
+<div class="live-bar">
+  <div class="live-score" id="liveScore">
+    <span class="team" id="teamA">NE</span> <span id="scoreA">0</span>
+    <span class="vs">–</span>
+    <span id="scoreB">0</span> <span class="team" id="teamB">SEA</span>
+  </div>
+  <div class="live-meta" id="liveMeta">Fetching score...</div>
+</div>
+
+<div class="container">
+
+  <div class="quarters" id="quarters"></div>
+
+  <div class="leaderboard" id="leaderboard"></div>
+
+  <div class="board-section">
+    <h3>The Board</h3>
+    <table class="board" id="boardTable"></table>
+  </div>
+
+  <div class="comm-toggle">
+    <button onclick="toggleComm()">⚙️ Commissioner</button>
+  </div>
+  <div class="comm-panel" id="commPanel"></div>
+
+</div>
+
+<div class="footer">Super Bowl LIX Squares &bull; Built with Claude Code</div>
+
+<script>
+// === BOARD DATA ===
+const PC = [6,0,5,2,1,3,9,8,7,4];
+const SR = [7,8,4,1,2,9,0,5,3,6];
+const G = [
+  ["ROLLOVER","Derrick Yuen","ROLLOVER","Abraham & Denali","John Carter","Abraham & Denali","John Carter","Kati Missman","Mike Lee","Andrew Vieweg"],
+  ["Andrew Vieweg","ROLLOVER","Adam Damerow","ROLLOVER","John Carter","Andrew Vieweg","Kati Missman","Kati Missman","Andrew Vieweg","Kati Missman"],
+  ["Adam Damerow","Mike Lee","ROLLOVER","Adam Damerow","Kati Missman","Rob Shereda","John Carter","Abraham & Denali","Rob Shereda","Mike Lee"],
+  ["John Carter","Andrew Vieweg","ROLLOVER","ROLLOVER","ROLLOVER","ROLLOVER","ROLLOVER","Rob Shereda","Abraham & Denali","ROLLOVER"],
+  ["Rob Shereda","Adam Damerow","Mike Lee","Kati Missman","Rob Shereda","Rob Shereda","Andrew Vieweg","ROLLOVER","ROLLOVER","Kati Missman"],
+  ["Adam Damerow","Kati Missman","Derrick Yuen","Rob Shereda","Adam Damerow","Adam Damerow","Derrick Yuen","Abraham & Denali","John Carter","ROLLOVER"],
+  ["Kati Missman","Derrick Yuen","John Carter","Mike Lee","Rob Shereda","John Carter","Derrick Yuen","ROLLOVER","Abraham & Denali","Abraham & Denali"],
+  ["Derrick Yuen","Derrick Yuen","Mike Lee","Mike Lee","Rob Shereda","John Carter","Mike Lee","Andrew Vieweg","Adam Damerow","Derrick Yuen"],
+  ["ROLLOVER","Adam Damerow","Adam Damerow","ROLLOVER","Andrew Vieweg","Abraham & Denali","ROLLOVER","ROLLOVER","Abraham & Denali","Andrew Vieweg"],
+  ["ROLLOVER","Derrick Yuen","Mike Lee","Rob Shereda","Kati Missman","John Carter","Mike Lee","Andrew Vieweg","Abraham & Denali","Derrick Yuen"]
+];
+
+const PAYOUTS = {Q1:80, Halftime:100, Q3:80, Final:140};
+const QUARTERS = ["Q1","Halftime","Q3","Final"];
+const QKEYS = ["q1","halftime","q3","final"];
+
+// Build lookup
+const B = {};
+SR.forEach((sd, ri) => PC.forEach((pd, ci) => B[pd+","+sd] = G[ri][ci]));
+
+// === STATE ===
+let locked = {}; // {q1:{ne:int,sea:int}, ...}
+let liveNE = 0, liveSEA = 0, liveTeamA = "NE", liveTeamB = "SEA";
+let livePeriod = 0, liveClock = "", liveStatus = "";
+let highlightCell = null; // [row,col] to highlight on board
+
+// === URL HASH ===
+function readHash() {
+  const h = location.hash.slice(1);
+  if (!h) return;
+  const params = new URLSearchParams(h);
+  QKEYS.forEach((k,i) => {
+    const v = params.get(k);
+    if (v) {
+      const [ne,sea] = v.split("-").map(Number);
+      if (!isNaN(ne) && !isNaN(sea)) locked[k] = {ne,sea};
+    }
+  });
+}
+
+function writeHash() {
+  const parts = [];
+  QKEYS.forEach(k => {
+    if (locked[k]) parts.push(k+"="+locked[k].ne+"-"+locked[k].sea);
+  });
+  history.replaceState(null, "", "#" + parts.join("&"));
+}
+
+function saveLocal() {
+  localStorage.setItem("sb_locked", JSON.stringify(locked));
+  writeHash();
+}
+
+function loadLocal() {
+  try {
+    const d = JSON.parse(localStorage.getItem("sb_locked"));
+    if (d) locked = d;
+  } catch(e) {}
+}
+
+// === CLOSEST SQUARE (BFS) ===
+function closestPaid(pd, sd) {
+  const r = SR.indexOf(sd), c = PC.indexOf(pd);
+  const vis = new Set([r+","+c]);
+  const queue = [[r,c,0]];
+  const found = [];
+  let foundDist = null;
+  while (queue.length) {
+    const [rr,cc,d] = queue.shift();
+    if (foundDist !== null && d > foundDist) break;
+    if (!(rr===r && cc===c) && G[rr][cc] !== "ROLLOVER") {
+      found.push(G[rr][cc]);
+      foundDist = d;
+    }
+    [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc]) => {
+      const nr = ((rr+dr)%10+10)%10, nc = ((cc+dc)%10+10)%10;
+      const key = nr+","+nc;
+      if (!vis.has(key)) { vis.add(key); queue.push([nr,nc,d+1]); }
+    });
+  }
+  return found;
+}
+
+// === RESOLVE QUARTER ===
+function resolve(ne, sea, quarter, rolloverIn) {
+  const pd = ne%10, sd = sea%10;
+  const name = B[pd+","+sd];
+  const base = PAYOUTS[quarter];
+  const pool = base + rolloverIn;
+  const qi = QUARTERS.indexOf(quarter);
+
+  if (name === "ROLLOVER") {
+    if (quarter === "Final") {
+      const winners = closestPaid(pd, sd);
+      if (winners.length === 1) {
+        return {square:name, winner:winners[0], pool, rollout:0, note:"ROLLOVER → Closest Square → "+winners[0]+" wins $"+pool};
+      } else {
+        const each = Math.floor(pool/winners.length);
+        return {square:name, winner:winners.join(", "), pool, rollout:0, note:"ROLLOVER → TIE: "+winners.join(", ")+" split $"+pool+" ($"+each+" each)"};
+      }
+    } else {
+      const nxt = QUARTERS[qi+1];
+      return {square:name, winner:null, pool, rollout:pool, note:"ROLLOVER — $"+pool+" rolls into "+nxt};
+    }
+  } else {
+    return {square:name, winner:name, pool, rollout:0, note:name+" wins $"+pool+"!"};
+  }
+}
+
+// === ESPN FETCH ===
+async function fetchESPN() {
+  try {
+    const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard");
+    const data = await r.json();
+    const ev = data.events[0];
+    const comp = ev.competitions[0];
+    const teams = {};
+    comp.competitors.forEach(c => {
+      teams[c.team.abbreviation] = parseInt(c.score)||0;
+    });
+    const st = comp.status;
+    const teamKeys = Object.keys(teams);
+    liveTeamA = teamKeys[0]; liveTeamB = teamKeys[1];
+    liveNE = teams[liveTeamA]; liveSEA = teams[liveTeamB];
+    livePeriod = st.period||0;
+    liveClock = st.displayClock||"";
+    liveStatus = st.type.name;
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// === RENDER ===
+function renderLive() {
+  document.getElementById("teamA").textContent = liveTeamA;
+  document.getElementById("teamB").textContent = liveTeamB;
+  document.getElementById("scoreA").textContent = liveNE;
+  document.getElementById("scoreB").textContent = liveSEA;
+
+  const qmap = {1:"Q1",2:"Q2",3:"Q3",4:"Q4"};
+  let statusText = "";
+  if (liveStatus === "STATUS_FINAL") statusText = "FINAL";
+  else if (liveStatus === "STATUS_IN_PROGRESS") statusText = '<span class="live-dot"></span>' + (qmap[livePeriod]||"") + " " + liveClock;
+  else if (liveStatus === "STATUS_HALFTIME") statusText = "HALFTIME";
+  else statusText = "Pre-game";
+
+  document.getElementById("liveMeta").innerHTML = statusText + " &bull; Auto-refreshes every 30s";
+}
+
+function renderQuarters() {
+  let html = "";
+  let rollover = 0;
+  const results = [];
+
+  QUARTERS.forEach((q,i) => {
+    const k = QKEYS[i];
+    if (!locked[k]) {
+      let cls = "q-card waiting";
+      let body = `<div class="q-label">${q}</div><div class="q-score">—</div><div class="q-winner">Waiting</div>`;
+      if (rollover > 0) body += `<div class="q-note">$${rollover} pending rollover</div>`;
+      html += `<div class="${cls}">${body}</div>`;
+      results.push(null);
+      return;
+    }
+
+    const {ne,sea} = locked[k];
+    const res = resolve(ne,sea,q,rollover);
+    results.push(res);
+
+    let cls = "q-card";
+    let winnerHtml = "";
+    let payoutHtml = "";
+
+    if (res.winner) {
+      cls += " won";
+      winnerHtml = `<div class="q-winner paid">${res.winner}</div>`;
+      payoutHtml = `<div class="q-payout paid">$${res.pool}</div>`;
+    } else {
+      cls += " rollover";
+      winnerHtml = `<div class="q-winner rolled">ROLLOVER</div>`;
+      payoutHtml = `<div class="q-payout" style="color:#e67e22">$${res.pool} →</div>`;
+    }
+
+    let noteHtml = "";
+    if (rollover > 0) noteHtml = `<div class="q-note">Includes $${rollover} rollover</div>`;
+
+    html += `<div class="${cls}">
+      <div class="q-label">${q}</div>
+      <div class="q-score">${liveTeamA} ${ne} – ${liveSEA!==undefined?liveTeamB:"SEA"} ${sea}</div>
+      ${winnerHtml}${payoutHtml}${noteHtml}
+    </div>`;
+
+    rollover = res.rollout;
+  });
+
+  document.getElementById("quarters").innerHTML = html;
+
+  // Leaderboard
+  const wins = {};
+  let totalPaid = 0;
+  results.forEach(r => {
+    if (r && r.winner) {
+      // Handle ties — split names by ", "
+      const names = r.winner.split(", ");
+      const each = Math.floor(r.pool / names.length);
+      names.forEach(n => { wins[n] = (wins[n]||0) + each; });
+      totalPaid += r.pool;
+    }
+  });
+
+  const sorted = Object.entries(wins).sort((a,b) => b[1]-a[1]);
+  let lbHtml = "<h3>💰 Winnings</h3>";
+  if (sorted.length === 0) {
+    lbHtml += '<div style="color:#666;font-size:13px">No quarters locked yet</div>';
+  } else {
+    sorted.forEach(([name,amt]) => {
+      lbHtml += `<div class="lb-row"><span class="lb-name">${name}</span><span class="lb-amt">$${amt}</span></div>`;
+    });
+    lbHtml += `<div class="lb-remaining">Paid: $${totalPaid} / $400`;
+    if (rollover > 0) lbHtml += ` &bull; $${rollover} rolling over`;
+    lbHtml += `</div>`;
+  }
+  document.getElementById("leaderboard").innerHTML = lbHtml;
+}
+
+function renderBoard() {
+  // Determine current highlight cell based on live score
+  const pd = liveNE % 10, sd = liveSEA % 10;
+  const hRow = SR.indexOf(sd), hCol = PC.indexOf(pd);
+
+  let html = "<tr><td class='corner'>SEA↓ NE→</td>";
+  PC.forEach(d => html += `<th>${d}</th>`);
+  html += "</tr>";
+
+  G.forEach((row, ri) => {
+    html += `<tr><td class="axis">${SR[ri]}</td>`;
+    row.forEach((cell, ci) => {
+      const isRollover = cell === "ROLLOVER";
+      const isHighlight = ri === hRow && ci === hCol;
+      let cls = isRollover ? "rollover" : "player";
+      if (isHighlight) cls += " highlight";
+      // Shorten long names for display
+      let display = cell;
+      if (cell === "Abraham & Denali") display = "Abraham &amp; Denali";
+      html += `<td class="${cls}">${display}</td>`;
+    });
+    html += "</tr>";
+  });
+
+  document.getElementById("boardTable").innerHTML = html;
+}
+
+function renderComm() {
+  let html = `<h3>⚙️ Commissioner Panel</h3>`;
+
+  QUARTERS.forEach((q,i) => {
+    const k = QKEYS[i];
+    const isLocked = !!locked[k];
+    const scoreText = isLocked ? `NE ${locked[k].ne} – SEA ${locked[k].sea}` : "";
+
+    html += `<div class="comm-row">
+      <label>${q}:</label>
+      <input type="number" id="ne_${k}" placeholder="NE" min="0" value="${isLocked?locked[k].ne:''}">
+      <input type="number" id="sea_${k}" placeholder="SEA" min="0" value="${isLocked?locked[k].sea:''}">
+      <button class="espn-btn" onclick="pullESPN('${k}')">📡 Pull ESPN</button>
+      <button onclick="lockQuarter('${k}')">🔒 Lock</button>
+      <span class="status ${isLocked?'locked':''}">${isLocked?'✅ Locked: '+scoreText:'Not locked'}</span>
+    </div>`;
+  });
+
+  html += `<div style="margin-top:16px">
+    <button onclick="clearAll()" style="background:#c0392b;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">🗑 Reset All Quarters</button>
+  </div>`;
+
+  html += `<div class="share-url" id="shareUrl" onclick="copyUrl()">Click to copy share URL</div>`;
+
+  document.getElementById("commPanel").innerHTML = html;
+  updateShareUrl();
+}
+
+function updateShareUrl() {
+  const el = document.getElementById("shareUrl");
+  if (el) {
+    const url = location.origin + location.pathname + location.hash;
+    el.textContent = "📋 Share URL (click to copy): " + url;
+  }
+}
+
+// === COMMISSIONER ACTIONS ===
+let commUnlocked = false;
+
+function toggleComm() {
+  const panel = document.getElementById("commPanel");
+  if (panel.classList.contains("open")) {
+    panel.classList.remove("open");
+    return;
+  }
+  if (!commUnlocked) {
+    const pw = prompt("Commissioner password:");
+    if (pw !== "squares") {
+      alert("Wrong password.");
+      return;
+    }
+    commUnlocked = true;
+  }
+  panel.classList.add("open");
+  renderComm();
+}
+
+function pullESPN(k) {
+  document.getElementById("ne_"+k).value = liveNE;
+  document.getElementById("sea_"+k).value = liveSEA;
+}
+
+function lockQuarter(k) {
+  const ne = parseInt(document.getElementById("ne_"+k).value);
+  const sea = parseInt(document.getElementById("sea_"+k).value);
+  if (isNaN(ne) || isNaN(sea)) { alert("Enter both scores."); return; }
+  locked[k] = {ne, sea};
+  saveLocal();
+  renderAll();
+  renderComm();
+}
+
+function clearAll() {
+  if (!confirm("Reset ALL quarter scores?")) return;
+  locked = {};
+  localStorage.removeItem("sb_locked");
+  history.replaceState(null, "", location.pathname);
+  renderAll();
+  renderComm();
+}
+
+function copyUrl() {
+  const url = location.origin + location.pathname + location.hash;
+  navigator.clipboard.writeText(url).then(() => {
+    const el = document.getElementById("shareUrl");
+    el.textContent = "✅ Copied!";
+    setTimeout(() => updateShareUrl(), 2000);
+  });
+}
+
+// === MAIN LOOP ===
+function renderAll() {
+  renderLive();
+  renderQuarters();
+  renderBoard();
+}
+
+async function tick() {
+  await fetchESPN();
+  renderAll();
+}
+
+// Init
+readHash();
+loadLocal();
+// Hash takes priority over localStorage
+readHash();
+
+tick();
+setInterval(tick, 30000);
+</script>
+</body>
+</html>
