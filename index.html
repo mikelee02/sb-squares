@@ -450,6 +450,13 @@ function lockQuarter(k) {
   saveLocal();
   renderAll();
   renderComm();
+  // Auto-copy the updated share URL
+  const url = location.origin + location.pathname + location.hash;
+  navigator.clipboard.writeText(url).then(() => {
+    alert("✅ Locked! Updated URL copied to clipboard.\n\nPaste it in the group chat so everyone sees the update.\n\n" + url);
+  }).catch(() => {
+    alert("✅ Locked! Share this URL with the group:\n\n" + url);
+  });
 }
 
 function clearAll() {
@@ -482,11 +489,16 @@ async function tick() {
   renderAll();
 }
 
-// Init
-readHash();
-loadLocal();
-// Hash takes priority over localStorage
-readHash();
+// Init — URL hash is the single source of truth for all viewers.
+// localStorage is only a backup for the commissioner's device.
+if (location.hash && location.hash.length > 1) {
+  // Hash present in URL — use it (this is how players receive scores)
+  readHash();
+} else {
+  // No hash — fall back to localStorage (commissioner's device only)
+  loadLocal();
+  writeHash(); // sync hash so commissioner can copy URL
+}
 
 tick();
 setInterval(tick, 30000);
